@@ -1,9 +1,20 @@
 import { BadgeCheck, Download, FileText } from "lucide-react";
 import type { Report } from "@/services/types";
 import { Button } from "@/components/ui/button";
+import "./report-document.css";
 
 function displayLabel(value: string) {
   return value.replaceAll("_", " ").replace(/\b\p{L}/gu, (letter) => letter.toLocaleUpperCase("es"));
+}
+
+function reportColumnWeight(key: string) {
+  const normalized = key.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  if (/(estado|status)/.test(normalized)) return 0.65;
+  if (/(seccion|section)/.test(normalized)) return 0.8;
+  if (/(criterio|criterion)/.test(normalized)) return 1.25;
+  if (/(justificacion|justification)/.test(normalized)) return 1.35;
+  if (/(evidencia|evidence)/.test(normalized)) return 1.15;
+  return 1;
 }
 
 function ReportValue({ value }: { value: unknown }) {
@@ -14,8 +25,15 @@ function ReportValue({ value }: { value: unknown }) {
     if (value.length > 0 && value.every((item) => item && typeof item === "object" && !Array.isArray(item))) {
       const rows = value as Array<Record<string, unknown>>;
       const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
+      const columnWeights = columns.map(reportColumnWeight);
+      const totalColumnWeight = columnWeights.reduce((total, weight) => total + weight, 0);
       return <div className="table-wrap">
-        <table className="min-w-[34rem]">
+        <table className="report-data-table min-w-[34rem]">
+          <colgroup>
+            {columns.map((key, index) => (
+              <col key={key} style={{ width: `${((columnWeights[index] ?? 1) / totalColumnWeight) * 100}%` }} />
+            ))}
+          </colgroup>
           <thead><tr>{columns.map((key) => <th key={key}>{displayLabel(key)}</th>)}</tr></thead>
           <tbody>{rows.map((row, index) => <tr key={index}>{columns.map((key) => <td key={key}><ReportValue value={row[key]} /></td>)}</tr>)}</tbody>
         </table>

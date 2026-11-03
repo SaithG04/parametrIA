@@ -28,6 +28,35 @@ describe("ReportDocument", () => {
     expect(screen.getByText(/Proveedor de prueba/)).toBeInTheDocument();
   });
 
+  it("allocates more PDF table width to long text columns", () => {
+    const report: Report = {
+      overallScore: 0,
+      summary: "",
+      sections: [],
+      recommendations: [],
+      tabla_verificacion: [
+        {
+          estado: "NO_CUMPLE",
+          seccion: "Resumen y abstract",
+          criterio: "Presenta objetivo y metodología",
+          justificacion: "La descripción debe explicar la muestra y el diseño de investigación.",
+          evidencia_documental: "El archivo no contiene la sección requerida.",
+        },
+      ],
+      providerName: "Proveedor de prueba",
+      model: "modelo-ejemplo",
+    };
+
+    const { container } = render(<ReportDocument report={report} studentName="Ana Pérez" fileName="informe.docx" />);
+    const columns = [...container.querySelectorAll<HTMLTableColElement>(".report-data-table col")];
+    const widthFor = (index: number) => Number.parseFloat(columns[index]?.style.width ?? "0");
+
+    expect(columns).toHaveLength(5);
+    expect(widthFor(0)).toBeLessThan(widthFor(2));
+    expect(widthFor(2)).toBeLessThan(widthFor(3));
+    expect(widthFor(1)).toBeLessThan(widthFor(4));
+  });
+
   it("opens the browser print dialog for PDF export", () => {
     const print = vi.spyOn(window, "print").mockImplementation(() => undefined);
     render(<ReportPdfDownloadButton fileName="informe final.docx" />);
