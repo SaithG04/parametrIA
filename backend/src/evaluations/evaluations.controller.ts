@@ -72,13 +72,15 @@ export class EvaluationsController {
   }
 
   @Post("preview")
+  @HttpCode(HttpStatus.OK)
   @ApiMessage("Documento convertido para previsualización. No se consumió un intento.")
   @UseInterceptors(DocxFileInterceptor)
-  preview(
+  async preview(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Body() fields: EvaluationFields,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    await this.jobs.assertNoActiveJob(user);
     return this.evaluations.preview(file, fields, user);
   }
 

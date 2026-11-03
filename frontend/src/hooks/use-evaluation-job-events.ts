@@ -21,11 +21,13 @@ export function useEvaluationJobEvents(enabled = true) {
   const { user, accessToken } = useSession();
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
+  const [lastJob, setLastJob] = useState<EvaluationJob | null>(null);
 
   useEffect(() => {
     if (!enabled || !user?.id || !accessToken) {
       setConnected(false);
       setConnectionError(false);
+      setLastJob(null);
       return;
     }
 
@@ -44,9 +46,11 @@ export function useEvaluationJobEvents(enabled = true) {
     };
     const onStatus = (payload: unknown) => {
       if (!isEvaluationJob(payload)) return;
+      setLastJob(payload);
       queryClient.setQueryData(queryKeys.job(payload.id), payload);
-      queryClient.setQueryData<EvaluationJob | null>(queryKeys.activeJob, (current) =>
-        current?.id === payload.id ? payload : current,
+      queryClient.setQueryData<EvaluationJob | null>(
+        queryKeys.activeJob,
+        payload.status === "WAITING" || payload.status === "PROCESSING" ? payload : null,
       );
     };
 
@@ -59,5 +63,5 @@ export function useEvaluationJobEvents(enabled = true) {
     };
   }, [accessToken, enabled, queryClient, user?.id]);
 
-  return { connected, connectionError };
+  return { connected, connectionError, lastJob };
 }

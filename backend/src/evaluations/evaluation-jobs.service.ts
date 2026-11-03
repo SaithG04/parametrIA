@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Injectable,
@@ -135,9 +136,22 @@ export class EvaluationJobsService {
         await transaction.$queryRaw(Prisma.sql`
           SELECT 1
           FROM (
-            SELECT pg_advisory_xact_lock(hashtext(${`${classroomId}:${actor.id}`}))
+            SELECT pg_advisory_xact_lock(hashtext(${"evaluation-student:" + actor.id}))
           ) AS reservation_lock
         `);
+        const activeJob = await transaction.evaluationJob.findFirst({
+          where: {
+            studentId: actor.id,
+            status: { in: [EvaluationJobStatus.WAITING, EvaluationJobStatus.PROCESSING] },
+          },
+          select: { id: true },
+        });
+        if (activeJob) {
+          throw new ConflictException({
+            message: "Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.",
+            errors: ["EVALUATION_JOB_IN_PROGRESS"],
+          });
+        }
         const [usage] = await transaction.$queryRaw<Array<{ usedToday: bigint }>>(Prisma.sql`
           SELECT
             (
@@ -186,7 +200,7 @@ export class EvaluationJobsService {
       });
     } catch (error) {
       await this.fileStorage.deleteDocument(fileKey);
-      if (error instanceof ForbiddenException) throw error;
+      if (error instanceof ForbiddenException || error instanceof ConflictException) throw error;
       this.logger.error("Could not reserve an evaluation job.", error instanceof Error ? error.stack : undefined);
       throw new ServiceUnavailableException({
         message: "No se pudo reservar el intento de evaluación. Inténtalo nuevamente.",
@@ -219,6 +233,28 @@ export class EvaluationJobsService {
       evaluationId: null,
     });
     return this.toJobDto(reservation.job);
+  }
+
+  async assertNoActiveJob(actor: AuthenticatedUser) {
+    if (actor.role !== UserRole.STUDENT) {
+      throw new ForbiddenException({
+        message: "Solo estudiantes pueden enviar documentos para evaluación.",
+        errors: ["EVALUATION_ACCESS_DENIED"],
+      });
+    }
+    const activeJob = await this.prisma.evaluationJob.findFirst({
+      where: {
+        studentId: actor.id,
+        status: { in: [EvaluationJobStatus.WAITING, EvaluationJobStatus.PROCESSING] },
+      },
+      select: { id: true },
+    });
+    if (activeJob) {
+      throw new ConflictException({
+        message: "Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.",
+        errors: ["EVALUATION_JOB_IN_PROGRESS"],
+      });
+    }
   }
 
   async getActiveJob(actor: AuthenticatedUser) {

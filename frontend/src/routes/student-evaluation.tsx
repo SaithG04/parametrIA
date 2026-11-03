@@ -27,7 +27,6 @@ import {
   useSubmitEvaluation,
 } from "@/hooks/queries";
 import { useSession } from "@/hooks/use-session";
-import { useEvaluationJobEvents } from "@/hooks/use-evaluation-job-events";
 import { ApiError } from "@/lib/api";
 import type { EvaluationSubmission } from "@/services/endpoints";
 import { StudentEvaluationFlow } from "@/routes/student-evaluation-flow";
@@ -58,10 +57,9 @@ export function StudentEvaluationPage() {
   const submitByok = useSubmitByok();
   const preview = usePreviewEvaluation();
   const activeJobQuery = useActiveEvaluationJob(Boolean(user?.id));
-  const realtime = useEvaluationJobEvents(Boolean(user?.id));
   const jobKey = `parametria.evaluation-job.${user?.id ?? "guest"}`;
   const [jobId, setJobId] = useState("");
-  const activeJobId = activeJobQuery.isFetchedAfterMount && !activeJobQuery.isError
+  const activeJobId = activeJobQuery.isFetched && !activeJobQuery.isError
     ? activeJobQuery.data?.id ?? ""
     : "";
   const currentJobId = jobId || activeJobId;
@@ -70,14 +68,18 @@ export function StudentEvaluationPage() {
   const [byokOpen, setByokOpen] = useState(false);
   const [confirmingSubmission, setConfirmingSubmission] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const canSubmit = Boolean(file && activeClassroomId && user?.id);
   const completedJob = jobQuery.data?.status === "SUCCEEDED" ? jobQuery.data : undefined;
   const activeJob = jobId
     ? jobQuery.data
-    : activeJobQuery.isFetchedAfterMount && !activeJobQuery.isError
+    : activeJobQuery.isFetched && !activeJobQuery.isError
       ? activeJobQuery.data ?? undefined
       : undefined;
   const isJobInProgress = activeJob?.status === "WAITING" || activeJob?.status === "PROCESSING";
+  const canChooseNewUpload = activeJobQuery.isFetched &&
+    !activeJobQuery.isError &&
+    !isJobInProgress &&
+    !completedJob;
+  const canSubmit = Boolean(file && activeClassroomId && user?.id && canChooseNewUpload);
   const staleJobError = jobQuery.error instanceof ApiError
     && jobQuery.error.code === "EVALUATION_JOB_NOT_FOUND";
   const statusError = activeJobQuery.isError || (jobQuery.isError && !staleJobError);
@@ -93,15 +95,17 @@ export function StudentEvaluationPage() {
   }, [jobKey, staleJobError]);
 
   useEffect(() => {
-    if (file && activeClassroomId) preview.mutate({ classroomId: activeClassroomId, file });
-  }, [file, activeClassroomId]);
+    if (file && activeClassroomId && canChooseNewUpload) {
+      preview.mutate({ classroomId: activeClassroomId, file });
+    }
+  }, [file, activeClassroomId, canChooseNewUpload]);
 
   function rememberJob(job: { id: string }) {
     setJobId(job.id);
   }
 
   async function submitDocument() {
-    if (!file || !activeClassroomId || !user) return;
+    if (!file || !activeClassroomId || !user || !canChooseNewUpload) return;
     setConfirmingSubmission(true);
     try {
       const accepted = await confirm({
@@ -110,6 +114,10 @@ export function StudentEvaluationPage() {
         confirmLabel: "Confirmar y procesar",
       });
       if (!accepted) return;
+      if (!canChooseNewUpload || activeJobQuery.data) {
+        toast.error("Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.");
+        return;
+      }
       const input: EvaluationSubmission = { classroomId: activeClassroomId, studentId: user.id, file };
       setUploadProgress(0);
       submit.mutate({ input, onUploadProgress: setUploadProgress }, {
@@ -125,6 +133,12 @@ export function StudentEvaluationPage() {
   }
 
   function chooseFile(nextFile: File) {
+    if (!canChooseNewUpload) {
+      toast.error(activeJobQuery.isError
+        ? "No se pudo verificar si tienes otra evaluación en proceso. Inténtalo nuevamente."
+        : "Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.");
+      return;
+    }
     if (!nextFile.name.toLowerCase().endsWith(".docx")) {
       toast.error("Selecciona un documento Word .docx.");
       return;
@@ -256,9 +270,9 @@ export function StudentEvaluationPage() {
         </button>
       </p>
     )}
-    {isJobInProgress && realtime.connectionError && (
-      <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-        La conexión en tiempo real no está disponible. Seguiremos consultando el estado automáticamente.
+    {!activeJobQuery.isFetched && !isJobInProgress && !completedJob && (
+      <p role="status" className="mb-5 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
+        Comprobando si tienes una evaluación en proceso antes de habilitar una nueva carga…
       </p>
     )}
     {jobQuery.data?.status === "FAILED" && (
@@ -290,7 +304,7 @@ export function StudentEvaluationPage() {
       </section>
     )}
 
-    {activeClassroomId && !isJobInProgress && !completedJob && (
+    {canChooseNewUpload && activeClassroomId && (
       <section className="surface grid gap-5 p-4 sm:p-6">
         <div>
           <h2 className="text-lg font-bold text-slate-900">Documento para evaluar</h2>
@@ -356,7 +370,10 @@ export function StudentEvaluationPage() {
       onOpenChange={setByokOpen}
       submitting={submitByok.isPending}
       onConfirm={({ providerId, apiKey }) => {
-        if (!file || !user) return;
+        if (!file || !activeClassroomId || !user || !canChooseNewUpload || activeJobQuery.data) {
+          toast.error("Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.");
+          return;
+        }
         setUploadProgress(0);
         submitByok.mutate(
           {

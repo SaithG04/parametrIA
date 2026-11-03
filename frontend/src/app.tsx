@@ -3,6 +3,8 @@ import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation, useN
 import { BookOpenCheck, Code2, ExternalLink, FileCheck2, FileSearch, KeyRound, LayoutDashboard, LogOut, PanelsTopLeft, Settings2, Shield, Upload, Users } from "lucide-react";
 import { authApi } from "@/services/endpoints";
 import { BrandLoader } from "@/components/brand-loader";
+import { StudentEvaluationNotifications } from "@/components/student-evaluation-notifications";
+import { AppUpdateNotification } from "@/components/app-update-notification";
 import { Button } from "@/components/ui/button";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
 import { useSession, loginSession, logoutSession } from "@/hooks/use-session";
@@ -115,6 +117,7 @@ function AppLayout() {
           {user.universityLogoUrl && <img src={user.universityLogoUrl} alt="" className="size-8 shrink-0 rounded-lg border border-slate-200 bg-white object-contain p-1" />}
           <span className="min-w-0"><span className="block text-[.62rem] font-bold uppercase tracking-[.12em] text-slate-400">Institución</span><span className="block max-w-40 truncate text-xs font-semibold text-slate-700">{user.universityName}</span></span>
         </div>}
+        {user?.role === "STUDENT" && <StudentEvaluationNotifications />}
         <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="Navegación principal">
           {user?.role === "SUPERADMIN" && <Link className={`nav-link ${location.pathname.includes("superadmin") ? "active" : ""}`} to="/app/superadmin"><Shield className="size-4" />Administración</Link>}
           {user?.role === "INSTRUCTOR" && <>
@@ -186,6 +189,7 @@ function RouterView() {
         <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </SessionBootstrap>
+      <AppUpdateNotification />
       <CookieNotice />
     </>
   </BrowserRouter>;

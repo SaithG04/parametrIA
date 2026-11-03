@@ -1,0 +1,24 @@
+.evaluation-notifications { position: relative; flex: 0 0 auto; }
+.evaluation-notifications-trigger { position: relative; display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border: 1px solid #d6e0e6; border-radius: .75rem; background: #fff; color: var(--institution-primary); }
+.evaluation-notifications-trigger:hover { background: var(--institution-soft); }
+.evaluation-notifications-badge { position: absolute; top: -.25rem; right: -.25rem; display: grid; min-width: 1.15rem; height: 1.15rem; place-items: center; border: 2px solid #fff; border-radius: 999px; background: #dc2626; color: white; font-size: .62rem; font-weight: 700; }
+.evaluation-notifications-panel { position: absolute; z-index: 40; top: calc(100% + .65rem); right: 0; width: min(23rem, calc(100vw - 1.5rem)); overflow: hidden; border: 1px solid #dce5e9; border-radius: 1rem; background: white; box-shadow: 0 18px 48px rgb(23 53 72 / 18%); }
+.evaluation-notifications-heading { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #edf1f3; padding: 1rem 1rem .75rem; }
+.evaluation-notifications-heading strong, .evaluation-notification-item strong { color: #172b3b; font-size: .88rem; font-weight: 700; }
+.evaluation-notifications-heading p { margin-top: .15rem; color: #71838e; font-size: .72rem; }
+.evaluation-notifications-heading button { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: .55rem; color: #71838e; }
+.evaluation-notifications-heading button:hover { background: #f1f5f7; }
+.evaluation-notification-item { display: flex; align-items: flex-start; gap: .75rem; padding: 1rem; }
+.evaluation-notification-icon { display: grid; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; place-items: center; border-radius: .75rem; background: #eff6ff; color: #2563eb; }
+.evaluation-notification-icon.is-processing { background: #ecfeff; color: #0e7490; }
+.evaluation-notification-icon.is-succeeded { background: #ecfdf5; color: #047857; }
+.evaluation-notification-icon.is-failed { background: #fff1f2; color: #be123c; }
+.evaluation-notification-file { overflow: hidden; margin-top: .2rem; color: #405766; font-size: .78rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.evaluation-notification-message { margin-top: .3rem; color: #71838e; font-size: .72rem; line-height: 1.5; }
+.evaluation-notification-link, .evaluation-notifications-footer { display: inline-flex; align-items: center; gap: .35rem; color: var(--institution-primary); font-size: .75rem; font-weight: 700; text-decoration: none; }
+.evaluation-notification-link { margin-top: .55rem; }
+.evaluation-notification-link:hover, .evaluation-notifications-footer:hover { text-decoration: underline; }
+.evaluation-notifications-empty, .evaluation-notifications-error { padding: 1rem; color: #607482; font-size: .8rem; }
+.evaluation-notifications-error { color: #be123c; }
+.evaluation-notifications-fallback { border-top: 1px solid #edf1f3; padding: .65rem 1rem; color: #92400e; font-size: .7rem; }
+.evaluation-notifications-footer { display: flex; border-top: 1px solid #edf1f3; padding: .8rem 1rem; }
