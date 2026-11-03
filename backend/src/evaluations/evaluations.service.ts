@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -9,7 +11,8 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import type { LanguageModelV2 } from "@ai-sdk/provider";
-import { Prisma, ProviderProtocol, UserRole } from "@prisma/client";
+import { EvaluationJobStatus, Prisma, ProviderProtocol, UserRole } from "@prisma/client";
+import { performance } from "node:perf_hooks";
 import type { Express } from "express";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { EncryptionService } from "../common/encryption.service";
@@ -44,6 +47,8 @@ function findNestedReportField(children: Prisma.JsonValue | null, key: string) {
 
 @Injectable()
 export class EvaluationsService {
+  private readonly logger = new Logger(EvaluationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly encryption: EncryptionService,
@@ -53,6 +58,7 @@ export class EvaluationsService {
   ) {}
 
   async preview(file: Express.Multer.File | undefined, fields: EvaluationFields, actor: AuthenticatedUser) {
+    const requestStartedAt = performance.now();
     const classroomId = fields.classroomId?.trim();
     if (actor.role !== UserRole.STUDENT) {
       throw new ForbiddenException({ message: "Solo estudiantes pueden previsualizar documentos de evaluación.", errors: ["EVALUATION_ACCESS_DENIED"] });
@@ -61,17 +67,32 @@ export class EvaluationsService {
       throw new BadRequestException({ message: "El archivo y el aula son obligatorios.", errors: ["INVALID_EVALUATION"] });
     }
 
-    const [classroom, student] = await Promise.all([
+    const [classroom, activeJob] = await Promise.all([
       this.prisma.classroom.findUnique({
         where: { id: classroomId },
-        select: { id: true, isActive: true, course: { select: { isActive: true } } },
+        select: {
+          id: true,
+          isActive: true,
+          course: { select: { isActive: true } },
+          students: { where: { id: actor.id }, select: { id: true } },
+        },
       }),
-      this.prisma.user.findFirst({
-        where: { id: actor.id, role: UserRole.STUDENT, classrooms: { some: { id: classroomId } } },
+      this.prisma.evaluationJob.findFirst({
+        where: {
+          studentId: actor.id,
+          status: { in: [EvaluationJobStatus.WAITING, EvaluationJobStatus.PROCESSING] },
+        },
         select: { id: true },
       }),
     ]);
-    if (!classroom || !student) {
+    const accessCheckMs = performance.now() - requestStartedAt;
+    if (activeJob) {
+      throw new ConflictException({
+        message: "Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.",
+        errors: ["EVALUATION_JOB_IN_PROGRESS"],
+      });
+    }
+    if (!classroom || classroom.students.length === 0) {
       throw new NotFoundException({ message: "No se encontró el aula asignada.", errors: ["CLASSROOM_NOT_FOUND"] });
     }
     if (!classroom.isActive) {
@@ -82,6 +103,7 @@ export class EvaluationsService {
     }
 
     let text: string;
+    const conversionStartedAt = performance.now();
     try {
       text = await convertDocumentToMarkdown(file.buffer);
     } catch {
@@ -90,9 +112,13 @@ export class EvaluationsService {
         errors: ["INVALID_DOCX"],
       });
     }
+    const conversionMs = performance.now() - conversionStartedAt;
     if (!text) {
       throw new BadRequestException({ message: "El documento no contiene texto evaluable.", errors: ["EMPTY_DOCUMENT"] });
     }
+    this.logger.log(
+      `Preview timing: access=${Math.round(accessCheckMs)}ms, docx=${Math.round(conversionMs)}ms, total=${Math.round(performance.now() - requestStartedAt)}ms, bytes=${file.size}.`,
+    );
 
     return {
       fileName: file.originalname,

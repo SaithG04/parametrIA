@@ -235,28 +235,6 @@ export class EvaluationJobsService {
     return this.toJobDto(reservation.job);
   }
 
-  async assertNoActiveJob(actor: AuthenticatedUser) {
-    if (actor.role !== UserRole.STUDENT) {
-      throw new ForbiddenException({
-        message: "Solo estudiantes pueden enviar documentos para evaluación.",
-        errors: ["EVALUATION_ACCESS_DENIED"],
-      });
-    }
-    const activeJob = await this.prisma.evaluationJob.findFirst({
-      where: {
-        studentId: actor.id,
-        status: { in: [EvaluationJobStatus.WAITING, EvaluationJobStatus.PROCESSING] },
-      },
-      select: { id: true },
-    });
-    if (activeJob) {
-      throw new ConflictException({
-        message: "Ya tienes una evaluación en proceso. Espera a que termine antes de subir otro documento.",
-        errors: ["EVALUATION_JOB_IN_PROGRESS"],
-      });
-    }
-  }
-
   async getActiveJob(actor: AuthenticatedUser) {
     if (actor.role !== UserRole.STUDENT) {
       throw new ForbiddenException({ message: "Solo estudiantes pueden consultar sus evaluaciones.", errors: ["EVALUATION_ACCESS_DENIED"] });
