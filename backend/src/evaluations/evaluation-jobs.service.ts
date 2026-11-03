@@ -171,7 +171,7 @@ export class EvaluationJobsService {
                   EvaluationJobStatus.WAITING,
                   EvaluationJobStatus.PROCESSING,
                   EvaluationJobStatus.SUCCEEDED,
-                ])})
+                ].map((status) => Prisma.sql`${status}::"EvaluationJobStatus"`))})
             ) AS "usedToday"
         `);
         const usedToday = Number(usage?.usedToday ?? 0n);

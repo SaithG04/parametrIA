@@ -54,8 +54,7 @@ export function StudentEvaluationNotifications() {
     >
       <header className="evaluation-notifications-heading">
         <div>
-          <strong>Procesamiento</strong>
-          <p>Estado de tu documento</p>
+          <strong>Notificaciones</strong>
         </div>
         <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar notificaciones">
           <XCircle aria-hidden="true" className="size-4" />
@@ -104,17 +103,10 @@ export function StudentEvaluationNotifications() {
                   )}
                 </div>
               </div>
-            : <p className="evaluation-notifications-empty">No tienes evaluaciones en proceso.</p>}
+            : <p className="evaluation-notifications-empty">No hay nuevas notificaciones.</p>}
       {!realtime.connected && activeJob && (
         <p className="evaluation-notifications-fallback">Reconectando a las actualizaciones en tiempo real…</p>
       )}
-      <Link
-        className="evaluation-notifications-footer"
-        to="/app/student/evaluation"
-        onClick={() => setOpen(false)}
-      >
-        Ir a Subir documento
-      </Link>
     </section>}
   </div>;
 }
