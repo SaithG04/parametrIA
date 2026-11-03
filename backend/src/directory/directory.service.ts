@@ -135,8 +135,8 @@ export class DirectoryService {
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, include: userInclude });
     if (!existing) throw new NotFoundException({ message: "No se encontró el usuario.", errors: ["USER_NOT_FOUND"] });
-    if (input.password !== undefined && input.password.length < 12) {
-      throw new BadRequestException({ message: "La contraseña debe tener al menos 12 caracteres.", errors: ["INVALID_PASSWORD"] });
+    if (input.password !== undefined && input.password.length < 8) {
+      throw new BadRequestException({ message: "La contraseña debe tener al menos 8 caracteres.", errors: ["INVALID_PASSWORD"] });
     }
     const role = input.role === undefined ? existing.role : this.parseRole(input.role);
     const data = {

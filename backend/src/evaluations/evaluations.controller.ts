@@ -17,6 +17,8 @@ import { CurrentUser } from "../auth/auth.decorators";
 import type { AuthenticatedUser } from "../auth/auth.types";
 import { ApiMessage } from "../common/api-message.decorator";
 import { EvaluationsService } from "./evaluations.service";
+import { EvaluationQueryService } from "./evaluation-query.service";
+import { EvaluationJobsService } from "./evaluation-jobs.service";
 import { IdempotencyInterceptor } from "../common/idempotency.interceptor";
 
 interface EvaluationFields {
@@ -42,7 +44,11 @@ const DocxFileInterceptor = FileInterceptor("file", {
 
 @Controller("evaluations")
 export class EvaluationsController {
-  constructor(private readonly evaluations: EvaluationsService) {}
+  constructor(
+    private readonly evaluations: EvaluationsService,
+    private readonly queries: EvaluationQueryService,
+    private readonly jobs: EvaluationJobsService,
+  ) {}
 
   @Get()
   list(
@@ -57,7 +63,7 @@ export class EvaluationsController {
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
   ) {
-    return this.evaluations.list(
+    return this.queries.list(
       { classroomId, courseId, studentId, studentName, search, dateFrom, dateTo },
       user,
       page,
@@ -78,17 +84,17 @@ export class EvaluationsController {
 
   @Get("jobs/active")
   getActiveJob(@CurrentUser() user: AuthenticatedUser) {
-    return this.evaluations.getActiveJob(user);
+    return this.jobs.getActiveJob(user);
   }
 
   @Get("jobs/:id")
   getJob(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.evaluations.getJob(id, user);
+    return this.jobs.getJob(id, user);
   }
 
   @Get(":id")
   get(@Param("id") id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.evaluations.get(id, user);
+    return this.queries.get(id, user);
   }
 
   @Post()
@@ -100,7 +106,7 @@ export class EvaluationsController {
     @Body() fields: EvaluationFields,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.evaluations.enqueue(file, fields, user);
+    return this.jobs.enqueue(file, fields, user);
   }
 
   @Post("byok")
@@ -112,6 +118,6 @@ export class EvaluationsController {
     @Body() fields: EvaluationFields,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.evaluations.enqueue(file, fields, user, true);
+    return this.jobs.enqueue(file, fields, user, true);
   }
 }

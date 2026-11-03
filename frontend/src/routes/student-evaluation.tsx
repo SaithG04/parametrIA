@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -13,6 +13,7 @@ import {
 import { ByokModal } from "@/components/byok-modal";
 import { DropZone } from "@/components/dropzone";
 import { BrandLoader } from "@/components/brand-loader";
+import { OriginalWordPreview } from "@/components/original-word-preview";
 import { MarkdownPreview } from "@/components/markdown-preview";
 import { FormSelect } from "@/components/ui/form-select";
 import { useConfirmation } from "@/components/ui/confirmation-provider";
@@ -26,6 +27,7 @@ import {
   useSubmitEvaluation,
 } from "@/hooks/queries";
 import { useSession } from "@/hooks/use-session";
+import { useEvaluationJobEvents } from "@/hooks/use-evaluation-job-events";
 import { ApiError } from "@/lib/api";
 import type { EvaluationSubmission } from "@/services/endpoints";
 import { StudentEvaluationFlow } from "@/routes/student-evaluation-flow";
@@ -36,6 +38,8 @@ import {
   PageHeading,
   RefreshButton,
 } from "@/routes/dashboard-shared";
+
+export { OriginalWordPreview };
 
 export function StudentEvaluationPage() {
   const navigate = useNavigate();
@@ -54,6 +58,7 @@ export function StudentEvaluationPage() {
   const submitByok = useSubmitByok();
   const preview = usePreviewEvaluation();
   const activeJobQuery = useActiveEvaluationJob(Boolean(user?.id));
+  const realtime = useEvaluationJobEvents(Boolean(user?.id));
   const jobKey = `parametria.evaluation-job.${user?.id ?? "guest"}`;
   const [jobId, setJobId] = useState("");
   const activeJobId = activeJobQuery.isFetchedAfterMount && !activeJobQuery.isError
@@ -251,6 +256,11 @@ export function StudentEvaluationPage() {
         </button>
       </p>
     )}
+    {isJobInProgress && realtime.connectionError && (
+      <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        La conexión en tiempo real no está disponible. Seguiremos consultando el estado automáticamente.
+      </p>
+    )}
     {jobQuery.data?.status === "FAILED" && (
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4">
         <p className="text-sm text-rose-900">Puedes revisar el archivo e iniciar otra evaluación.</p>
@@ -361,44 +371,4 @@ export function StudentEvaluationPage() {
       }}
     />
   </div>;
-}
-
-export function OriginalWordPreview({ file }: { file: File }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const container = containerRef.current;
-    if (!container) return;
-    container.replaceChildren();
-    setError("");
-    setLoading(true);
-    const renderTarget = document.createElement("div");
-    void import("docx-preview")
-      .then(({ renderAsync }) => renderAsync(file, renderTarget, undefined, {
-        inWrapper: true,
-        ignoreWidth: false,
-        ignoreHeight: true,
-      }))
-      .then(() => {
-        if (active) container.replaceChildren(...renderTarget.childNodes);
-      })
-      .catch(() => {
-        if (active) setError("No se pudo interpretar el Word original. Puedes revisar el texto convertido en la vista previa.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; container.replaceChildren(); };
-  }, [file]);
-
-  return (
-    <div className="max-h-[38rem] overflow-auto rounded-lg bg-slate-50 p-2">
-      {error && <p role="alert" className="mb-2 text-sm text-rose-700">{error}</p>}
-      {loading && <p className="mb-2 text-sm text-slate-500">Cargando vista del documento Word…</p>}
-      <div ref={containerRef} className="docx-preview min-h-24" />
-    </div>
-  );
 }

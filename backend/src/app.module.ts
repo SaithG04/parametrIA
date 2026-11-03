@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "./auth/auth.module";
 import { ClassroomsModule } from "./classrooms/classrooms.module";
 import { CommonModule } from "./common/common.module";
+import { QueueModule } from "./common/queue.module";
 import { DirectoryModule } from "./directory/directory.module";
 import { EvaluationsModule } from "./evaluations/evaluations.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -15,6 +16,7 @@ import { LegalModule } from "./legal/legal.module";
 @Module({
   imports: [
     CommonModule,
+    QueueModule,
     PrismaModule,
     AuthModule,
     ProvidersModule,

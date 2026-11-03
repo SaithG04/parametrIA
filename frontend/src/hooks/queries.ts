@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ApiError, toastApiError } from "@/lib/api";
+import { toastApiError } from "@/lib/api";
 import {
-  authApi,
   classroomsApi,
-  evaluationsApi,
   instructorApi,
-  legalApi,
   providersApi,
   reportSchemaApi,
   statsApi,
@@ -14,82 +11,23 @@ import {
   universitiesApi,
   usersApi,
   type StudentFilters,
-  type EvaluationFilters,
   type ReportSchemaFieldInput,
   type UserFilters,
 } from "@/services/endpoints";
 import type {
   AiConfigInput,
-  AuthSession,
-  LegalStatus,
   PageResult,
   ProviderInput,
-  Role,
   SessionUser,
   University,
   UserInput,
 } from "@/services/types";
+import { queryKeys } from "./query-keys";
+import { invalidate } from "./query-utils";
 
-export const queryKeys = {
-  providers: ["providers"] as const,
-  universities: ["universities"] as const,
-  users: ["users"] as const,
-  classrooms: (role: Role, userId: string) => ["classrooms", role, userId] as const,
-  classroom: (id: string) => ["classroom", id] as const,
-  courses: ["courses"] as const,
-  credentials: ["credentials"] as const,
-  students: ["instructor-students"] as const,
-  evaluations: (filters: Record<string, string | undefined>) => ["evaluations", filters] as const,
-  activeJob: ["evaluations", "active-job"] as const,
-  job: (id: string) => ["evaluations", "job", id] as const,
-  reportFields: ["report-schema-fields", "active"] as const,
-  reportSchemaFields: ["report-schema-fields", "admin"] as const,
-  systemPrompts: ["system-prompts"] as const,
-  stats: ["stats", "superadmin"] as const,
-  legalStatus: (userId: string) => ["legal-status", userId] as const,
-  legalDocuments: ["legal-documents"] as const,
-  instructorStats: ["stats", "instructor"] as const,
-  studentStats: ["stats", "student"] as const,
-};
-
-function invalidate(client: ReturnType<typeof useQueryClient>, keys: readonly (readonly unknown[])[]) {
-  keys.forEach((key) => void client.invalidateQueries({ queryKey: [...key] }));
-}
-
-export function useLogin() {
-  return useMutation({
-    mutationFn: (credentials: { email: string; password: string }) => authApi.login(credentials),
-  });
-}
-
-export function useLegalDocuments() {
-  return useQuery({
-    queryKey: queryKeys.legalDocuments,
-    queryFn: legalApi.documents,
-    staleTime: 60 * 60 * 1000,
-  });
-}
-
-export function useLegalStatus(userId: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.legalStatus(userId),
-    queryFn: legalApi.status,
-    enabled: Boolean(userId) && enabled,
-    staleTime: 0,
-  });
-}
-
-export function useAcceptLegal(userId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: legalApi.accept,
-    onSuccess: (status: LegalStatus) => {
-      client.setQueryData(queryKeys.legalStatus(userId), status);
-      toast.success("Aceptación registrada.");
-    },
-    onError: toastApiError,
-  });
-}
+export { queryKeys } from "./query-keys";
+export * from "./evaluation-queries";
+export * from "./session-queries";
 
 export function useProviders(page = 1, pageSize = 100, search = "", enabled = true) {
   return useQuery({
@@ -397,20 +335,6 @@ export function useActivateSystemPromptVersion() {
   });
 }
 
-export function useRequestPasswordReset() {
-  return useMutation({
-    mutationFn: authApi.requestPasswordReset,
-    onError: toastApiError,
-  });
-}
-
-export function useResetPassword() {
-  return useMutation({
-    mutationFn: authApi.resetPassword,
-    onError: toastApiError,
-  });
-}
-
 export function useInstructorStudents(filters: StudentFilters, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.students, filters],
@@ -446,84 +370,6 @@ export function useImportInstructorStudents() {
   });
 }
 
-export function useEvaluations(
-  filters: EvaluationFilters = {},
-  page = 1,
-  pageSize = 10,
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: queryKeys.evaluations({ ...filters, page: String(page), pageSize: String(pageSize) }),
-    queryFn: () => evaluationsApi.list(filters, page, pageSize),
-    enabled,
-  });
-}
-
-export function useEvaluation(id: string, enabled = true) {
-  return useQuery({
-    queryKey: ["evaluations", "item", id],
-    queryFn: () => evaluationsApi.get(id),
-    enabled: Boolean(id) && enabled,
-  });
-}
-
-export function useSubmitEvaluation() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ input, onUploadProgress }: {
-      input: Parameters<typeof evaluationsApi.submit>[0];
-      onUploadProgress?: (progress: number) => void;
-    }) => evaluationsApi.submit(input, onUploadProgress),
-    onSuccess: () => invalidate(client, [queryKeys.activeJob]),
-    onError: (error) => toastApiError(error, ["DAILY_LIMIT_REACHED"]),
-  });
-}
-
-export function useSubmitByok() {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: ({ input, onUploadProgress }: {
-      input: Parameters<typeof evaluationsApi.submitByok>[0];
-      onUploadProgress?: (progress: number) => void;
-    }) => evaluationsApi.submitByok(input, onUploadProgress),
-    onSuccess: () => invalidate(client, [queryKeys.activeJob]),
-    onError: toastApiError,
-  });
-}
-
-export function usePreviewEvaluation() {
-  return useMutation({
-    mutationFn: ({ classroomId, file }: { classroomId: string; file: File }) => evaluationsApi.preview(classroomId, file),
-    onError: toastApiError,
-  });
-}
-
-export function useActiveEvaluationJob(enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.activeJob,
-    queryFn: evaluationsApi.activeJob,
-    enabled,
-    retry: false,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "WAITING" || status === "PROCESSING" ? 2_000 : false;
-    },
-  });
-}
-
-export function useEvaluationJob(id: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.job(id),
-    queryFn: () => evaluationsApi.job(id),
-    enabled: Boolean(id) && enabled,
-    retry: false,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "WAITING" || status === "PROCESSING" ? 2_000 : false;
-    },
-  });
-}
-
 export function useSuperadminStats() {
   return useQuery({ queryKey: queryKeys.stats, queryFn: statsApi.superadmin });
 }
@@ -542,10 +388,6 @@ export function useStudentStats(enabled = true) {
     queryFn: statsApi.student,
     enabled,
   });
-}
-
-export function isDailyLimitError(error: unknown) {
-  return error instanceof ApiError && error.code === "DAILY_LIMIT_REACHED";
 }
 
 export type { PageResult };

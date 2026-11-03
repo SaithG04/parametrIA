@@ -72,7 +72,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <RecoveryFrame title="Configura tu contraseña" description="Elige una contraseña segura de al menos 12 caracteres.">
+    <RecoveryFrame title="Configura tu contraseña" description="Elige una contraseña de al menos 8 caracteres.">
       {completed ? (
         <div className="space-y-4 text-center">
           <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -91,7 +91,7 @@ export function ResetPasswordPage() {
             <input
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={8}
               maxLength={128}
               required
               value={password}
@@ -103,7 +103,7 @@ export function ResetPasswordPage() {
             <input
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={8}
               maxLength={128}
               required
               value={confirmation}

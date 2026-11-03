@@ -62,6 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       data: null,
       errors,
+      path: request.path,
     });
   }
 }

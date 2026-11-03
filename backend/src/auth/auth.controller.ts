@@ -36,7 +36,7 @@ class ResetPasswordDto {
   token!: string;
 
   @IsString()
-  @MinLength(12)
+  @MinLength(8)
   @MaxLength(128)
   password!: string;
 }

@@ -12,6 +12,7 @@ export interface ApiEnvelope<T> {
   message: string;
   data: T;
   errors: string[] | null;
+  path?: string;
 }
 
 export class ApiError extends Error {

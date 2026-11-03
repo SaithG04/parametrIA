@@ -238,6 +238,7 @@ model Evaluation {
   createdAt   DateTime       @default(now())
 
   @@index([classroomId, studentId, createdAt])
+  @@index([classroomId, studentId, jobId, createdAt])
   @@index([systemPromptVersionId])
 }
 
@@ -274,7 +275,9 @@ model EvaluationJob {
   updatedAt       DateTime            @updatedAt
 
   @@index([studentId, status, createdAt])
-  @@index([classroomId, studentId, createdAt])
+  @@index([classroomId, studentId, createdAt, status])
+  @@index([status, updatedAt, id])
+  @@index([status, createdAt, id])
 }
 
 model ReportSchemaField {

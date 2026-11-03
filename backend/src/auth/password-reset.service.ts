@@ -51,7 +51,7 @@ export class PasswordResetService {
       });
     });
     try {
-      await this.email.sendPasswordSetup(user.email, user.name, token, ttlSeconds);
+      await this.email.sendPasswordSetup(user.id, token, digest(token), ttlSeconds);
     } catch (error) {
       await this.prisma.passwordResetToken.updateMany({
         where: { tokenHash: digest(token), usedAt: null },
@@ -63,16 +63,6 @@ export class PasswordResetService {
         errors: ["EMAIL_DELIVERY_FAILED"],
       });
     }
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
-        data: { mustSetPassword: true },
-      }),
-      this.prisma.authSession.updateMany({
-        where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
   }
 
   async complete(token: string, newPassword: string) {

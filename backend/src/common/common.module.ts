@@ -4,6 +4,7 @@ import { AllExceptionsFilter } from "./all-exceptions.filter";
 import { IdempotencyInterceptor } from "./idempotency.interceptor";
 import { IdempotencyService } from "./idempotency.service";
 import { TransformInterceptor } from "./transform.interceptor";
+import { EncryptionService } from "./encryption.service";
 
 @Global()
 @Module({
@@ -12,9 +13,10 @@ import { TransformInterceptor } from "./transform.interceptor";
     AllExceptionsFilter,
     IdempotencyService,
     IdempotencyInterceptor,
+    EncryptionService,
     { provide: APP_INTERCEPTOR, useExisting: TransformInterceptor },
     { provide: APP_FILTER, useExisting: AllExceptionsFilter },
   ],
-  exports: [TransformInterceptor, AllExceptionsFilter, IdempotencyService, IdempotencyInterceptor],
+  exports: [TransformInterceptor, AllExceptionsFilter, IdempotencyService, IdempotencyInterceptor, EncryptionService],
 })
 export class CommonModule {}

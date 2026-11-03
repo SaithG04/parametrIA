@@ -20,6 +20,13 @@ Requisitos: Node.js 20.6 o superior, npm y Docker Compose.
    npm --prefix backend run prisma:seed
    ```
 
+Antes de iniciar la API para desarrollo, comprueba también que el esquema esté al día:
+
+   ```sh
+   npm --prefix backend run prisma:migrate:status
+   npm --prefix backend run prisma:migrate:deploy
+   ```
+
 4. En terminales separadas, inicia la API y el frontend:
 
    ```sh
@@ -33,11 +40,11 @@ El acceso se realiza con correo y contraseña. El seed crea tres cuentas de demo
 
 Los orígenes permitidos se configuran en `FRONTEND_ORIGINS` como lista separada por comas. `COOKIE_SECURE`, `COOKIE_SAME_SITE`, `COOKIE_DOMAIN`, `API_PREFIX`, `PORT`, secretos JWT, emisor/audiencia y expiraciones también se leen del entorno. En producción usa HTTPS, secretos independientes y `COOKIE_SECURE=true`.
 
-El alta de usuarios y el restablecimiento de contraseñas envían enlaces de un solo uso, con hash en base de datos y vencimiento configurable mediante `PASSWORD_RESET_TTL_SECONDS` (por defecto, 30 minutos). Configura `FRONTEND_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` y, opcionalmente, `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS` y `SMTP_SOCKET_TIMEOUT_MS` en `.env`. Sin SMTP configurado, el alta/restablecimiento falla explícitamente. Las cuentas demo se sincronizan con `DEMO_*_PASSWORD` al volver a ejecutar `npm --prefix backend run prisma:seed`.
+El alta de usuarios y el restablecimiento de contraseñas encolan correos de enlaces de un solo uso, con hash en base de datos y vencimiento configurable mediante `PASSWORD_RESET_TTL_SECONDS` (por defecto, 30 minutos). BullMQ usa el Redis existente y el worker entrega los mensajes con reintentos. Configura `FRONTEND_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` y, opcionalmente, `SMTP_CONNECTION_TIMEOUT_MS`, `SMTP_GREETING_TIMEOUT_MS` y `SMTP_SOCKET_TIMEOUT_MS` en `.env`. Sin SMTP configurado, el alta/restablecimiento falla explícitamente. Las cuentas demo se sincronizan con `DEMO_*_PASSWORD` al volver a ejecutar `npm --prefix backend run prisma:seed`.
 
 El access token JWT se mantiene en memoria del navegador; el refresh token se entrega en cookie `HttpOnly`, se rota en cada renovación y su sesión se puede revocar. Las operaciones de escritura importantes requieren `Idempotency-Key`; `X-Request-ID` se registra y se devuelve para correlacionar logs y respuestas.
 
-Las listas de proveedores, universidades, usuarios, aulas y evaluaciones usan paginación del servidor. Se consulta con `page` (desde 1) y `pageSize` (1–100); la respuesta de `data` contiene `items` y `pagination` (`page`, `pageSize`, `total`, `totalPages`).
+Las respuestas de la API incluyen `path` en el nivel superior del envelope para identificar la ruta HTTP que procesó la solicitud (sin query params). Las listas de proveedores, universidades, usuarios, aulas y evaluaciones usan paginación del servidor. Se consulta con `page` (desde 1) y `pageSize` (1–100); la respuesta de `data` contiene `items` y `pagination` (`page`, `pageSize`, `total`, `totalPages`).
 
 ## Migraciones de base de datos
 
@@ -64,7 +71,7 @@ En **Panel docente → Reportes**, el instructor puede filtrar bajo demanda por 
 
 En Administración → **Instrucciones del sistema**, el superadministrador puede publicar una nueva versión de las instrucciones académicas globales o reactivar una versión anterior. Las versiones publicadas son inmutables: editar y guardar crea una versión nueva. Las evaluaciones conservan la relación con la versión que se usó. Las reglas técnicas de seguridad y el formato JSON estricto permanecen protegidos en el backend. Las claves, descripciones, tipos y propiedades de los campos activos del reporte se incorporan automáticamente a las instrucciones del modelo; el prompt global no necesita duplicarlos.
 
-El estudiante compara la vista del Word original con el texto extraído que recibirá el evaluador antes de confirmar. ParametrIA no impone un límite de caracteres al texto; el archivo `.docx` sí está limitado a 15 MB y cada proveedor puede aplicar su propio límite de contexto. Al confirmar, la API responde `202 Accepted` y el trabajo se procesa en segundo plano con BullMQ/Redis; la reserva del intento y la aplicación del límite diario se serializan en PostgreSQL para evitar sobrepasarlo con envíos simultáneos. El estudiante consulta el estado y puede volver a conectarse sin cancelar la operación. Redis conserva la cola y PostgreSQL el estado asociado al estudiante. En desarrollo, la API incluye el worker cuando `RUN_EVALUATION_WORKER=true`. Para desplegar workers por separado, configura `RUN_EVALUATION_WORKER=false` en la API y ejecuta otra instancia con `RUN_EVALUATION_WORKER=true npm run start:worker`; ambas instancias deben compartir `DATABASE_URL`, `REDIS_URL`, `ENCRYPTION_KEY` y el almacenamiento de documentos. El estado se actualiza mediante consulta periódica; no depende de mantener un WebSocket abierto. Al exceder el límite diario, el estudiante puede elegir proveedor, cargar los modelos con una clave temporal y continuar con BYOK.
+El estudiante compara la vista del Word original con el texto extraído que recibirá el evaluador antes de confirmar. ParametrIA no impone un límite de caracteres al texto; el archivo `.docx` sí está limitado a 15 MB y cada proveedor puede aplicar su propio límite de contexto. Al confirmar, la API responde `202 Accepted` y el trabajo se procesa en segundo plano con BullMQ/Redis; la reserva del intento y la aplicación del límite diario se serializan en PostgreSQL para evitar sobrepasarlo con envíos simultáneos. El estado se transmite al estudiante autenticado mediante WebSocket sobre Redis y mantiene la consulta periódica como respaldo. El estudiante puede volver a conectarse sin cancelar la operación. PostgreSQL conserva el estado asociado al estudiante. En desarrollo, la API incluye el worker cuando `RUN_EVALUATION_WORKER=true`. Para desplegar workers por separado, configura `RUN_EVALUATION_WORKER=false` en la API y ejecuta otra instancia con `RUN_EVALUATION_WORKER=true npm run start:worker`; ambas instancias deben compartir `DATABASE_URL`, `REDIS_URL`, `ENCRYPTION_KEY` y el almacenamiento de documentos. Al exceder el límite diario, el estudiante puede elegir proveedor, cargar los modelos con una clave temporal y continuar con BYOK.
 
 En administración, los logos de proveedores pueden ser enlaces externos o imágenes guardadas en MinIO; las cuentas se desactivan sin borrar su historial. El panel docente permite crear cursos y aulas, gestionar credenciales, crear estudiantes o importarlos con la plantilla `.xlsx` descargable y matricularlos solo en aulas propias. La plantilla incluye una hoja de guía y los estudiantes reciben su enlace de configuración por correo. Las búsquedas de gestión se ejecutan bajo demanda y sus filtros se aplican en PostgreSQL.
 
