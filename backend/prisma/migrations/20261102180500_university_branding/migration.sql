@@ -1,0 +1,8 @@
+ALTER TABLE "University"
+ADD COLUMN "logoUrl" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "primaryColor" TEXT NOT NULL DEFAULT '#20466a',
+ADD COLUMN "accentColor" TEXT NOT NULL DEFAULT '#f9a21d';
+
+UPDATE "User"
+SET "universityId" = NULL
+WHERE "role" = 'SUPERADMIN';

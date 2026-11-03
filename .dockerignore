@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+secrets
+postgres-data
+redis-data
+minio-data
+*.log

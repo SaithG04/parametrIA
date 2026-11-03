@@ -1,0 +1,1 @@
+-- The required course relation is enforced after the Course table is created.

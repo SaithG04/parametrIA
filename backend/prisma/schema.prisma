@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+enum ReportSchemaFieldType {
+  STRING
+  NUMBER
+  BOOLEAN
+  ENUM
+  ARRAY_OF_STRINGS
+  OBJECT
+  ARRAY_OF_OBJECTS
+}
+
+enum ProviderProtocol {
+  OPENAI_COMPATIBLE
+  ANTHROPIC
+  GEMINI
+}
+
+enum EvaluationJobStatus {
+  WAITING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum LegalDocumentType {
+  TERMS
+  PRIVACY
+}
+
+model User {
+  id                  String                 @id @default(cuid())
+  name                String
+  email               String                 @unique
+  passwordHash        String?
+  mustSetPassword     Boolean                @default(false)
+  isActive            Boolean                @default(true)
+  acceptedTermsVersion String?
+  acceptedTermsAt      DateTime?
+  acceptedPrivacyVersion String?
+  acceptedPrivacyAt    DateTime?
+  role                UserRole
+  universityId        String?
+  university          University?            @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  instructs           Classroom[]            @relation("ClassroomInstructor")
+  classrooms          Classroom[]            @relation("ClassroomStudents")
+  evaluations         Evaluation[]
+  systemPromptVersions SystemPromptVersion[]
+  evaluationJobs      EvaluationJob[]
+  authSessions        AuthSession[]
+  idempotency         IdempotencyRecord[]
+  passwordResetTokens PasswordResetToken[]
+  aiCredentials       InstructorCredential[] @relation("CredentialOwner")
+  legalAcceptances    LegalAcceptance[]
+  courses             Course[]               @relation("CourseInstructor")
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+}
+
+model LegalAcceptance {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType LegalDocumentType
+  version      String
+  acceptedAt   DateTime          @default(now())
+
+  @@unique([userId, documentType, version])
+  @@index([userId, acceptedAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, usedAt, expiresAt])
+}
+
+model AuthSession {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  replacedById     String?
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId, revokedAt, expiresAt])
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key         String
+  method      String
+  path        String
+  requestHash String
+  status      String   @default("PROCESSING")
+  response    Json?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@unique([userId, key])
+  @@index([expiresAt])
+}
+
+model University {
+  id           String      @id @default(cuid())
+  name         String
+  domain       String      @default("")
+  logoUrl      String      @default("")
+  primaryColor String      @default("#20466a")
+  accentColor  String      @default("#f9a21d")
+  users        User[]
+  classrooms   Classroom[]
+  courses      Course[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Provider {
+  id            String                 @id @default(cuid())
+  name          String
+  logoUrl       String                 @default("")
+  logoObjectKey String                 @default("")
+  baseUrl       String                 @default("https://api.openai.com/v1")
+  protocol      ProviderProtocol       @default(OPENAI_COMPATIBLE)
+  configs       ClassroomConfig[]
+  credentials   InstructorCredential[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+}
+
+model InstructorCredential {
+  id           String            @id @default(cuid())
+  name         String
+  userId       String
+  user         User              @relation("CredentialOwner", fields: [userId], references: [id], onDelete: Cascade)
+  providerId   String
+  provider     Provider          @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  encryptedKey String
+  configs      ClassroomConfig[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([userId, providerId, name])
+  @@index([userId, providerId])
+}
+
+model Course {
+  id           String      @id @default(cuid())
+  name         String
+  description  String      @default("")
+  isActive     Boolean     @default(true)
+  instructorId String
+  instructor   User        @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  universityId String?
+  university   University? @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  classrooms   Classroom[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([instructorId, name])
+}
+
+model Classroom {
+  id             String           @id @default(cuid())
+  name           String
+  code           String           @unique
+  isActive       Boolean          @default(true)
+  universityId   String?
+  university     University?      @relation(fields: [universityId], references: [id], onDelete: SetNull)
+  courseId       String
+  course         Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  instructorId   String
+  instructor     User             @relation("ClassroomInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  students       User[]           @relation("ClassroomStudents")
+  config         ClassroomConfig?
+  evaluations    Evaluation[]
+  evaluationJobs EvaluationJob[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model ClassroomConfig {
+  id                   String                @id @default(cuid())
+  classroomId          String                @unique
+  classroom            Classroom             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  providerId           String
+  provider             Provider              @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  credentialId         String?
+  credential           InstructorCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  selectedModels       String[]              @default([])
+  selectedReportFields String[]              @default([])
+  userPrompt           String                @db.Text
+  rubricText           String                @db.Text
+  dailyLimit           Int                   @default(2)
+  updatedAt            DateTime              @updatedAt
+}
+
+model Evaluation {
+  id          String         @id @default(cuid())
+  classroomId String
+  classroom   Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileKey     String
+  provider    String
+  model       String
+  report      Json
+  systemPromptVersionId String
+  systemPromptVersion   SystemPromptVersion @relation(fields: [systemPromptVersionId], references: [id], onDelete: Restrict)
+  jobId       String?        @unique
+  job         EvaluationJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+
+  @@index([classroomId, studentId, createdAt])
+  @@index([systemPromptVersionId])
+}
+
+model SystemPromptVersion {
+  id             String       @id @default(cuid())
+  version        Int          @unique
+  title          String
+  instructions   String       @db.Text
+  isActive       Boolean      @default(false)
+  createdById    String?
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  evaluations    Evaluation[]
+  createdAt      DateTime     @default(now())
+
+  @@index([isActive, version])
+}
+
+model EvaluationJob {
+  id              String              @id @default(cuid())
+  classroomId     String
+  classroom       Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status          EvaluationJobStatus @default(WAITING)
+  fileName        String
+  fileKey         String
+  isByok          Boolean             @default(false)
+  providerId      String
+  modelId         String
+  encryptedApiKey String              @db.Text
+  errorMessage    String              @default("") @db.Text
+  evaluation      Evaluation?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([studentId, status, createdAt])
+  @@index([classroomId, studentId, createdAt])
+}
+
+model ReportSchemaField {
+  id          String                @id @default(cuid())
+  key         String                @unique
+  label       String
+  type        ReportSchemaFieldType
+  description String                @db.Text
+  options     String[]              @default([])
+  children    Json?
+  isRequired  Boolean               @default(true)
+  isActive    Boolean               @default(true)
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([isActive, sortOrder])
+}

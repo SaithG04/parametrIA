@@ -1,0 +1,59 @@
+{
+  "name": "parametria-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file=../.env ./node_modules/@nestjs/cli/bin/nest.js start --watch",
+    "build": "node --env-file=../.env ./node_modules/prisma/build/index.js generate && tsc -p tsconfig.json",
+    "start": "node --env-file=../.env dist/src/main.js",
+    "start:worker": "node --env-file=../.env dist/src/worker.js",
+    "prisma:generate": "node --env-file=../.env ./node_modules/prisma/build/index.js generate",
+    "prisma:migrate": "node --env-file=../.env ./node_modules/prisma/build/index.js migrate dev",
+    "prisma:migrate:deploy": "node --env-file=../.env ./node_modules/prisma/build/index.js migrate deploy",
+    "prisma:migrate:status": "node --env-file=../.env ./node_modules/prisma/build/index.js migrate status",
+    "prisma:seed": "node --env-file=../.env --import tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.0",
+    "@ai-sdk/google": "^2.0.107",
+    "@ai-sdk/openai": "^2.0.0",
+    "@aws-sdk/client-s3": "^3.884.0",
+    "@nestjs/bullmq": "^12.0.0",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/config": "^12.0.1",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@prisma/client": "^6.19.0",
+    "ai": "^5.0.0",
+    "bullmq": "^6.5.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "cookie-parser": "^1.4.7",
+    "ioredis": "^6.0.0",
+    "jose": "^6.2.15",
+    "jszip": "^3.10.2",
+    "mammoth": "^1.10.0",
+    "nodemailer": "^10.3.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/schematics": "^11.1.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^22.16.5",
+    "@types/nodemailer": "^8.0.2",
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "webpack": "^5.112.2"
+  },
+  "overrides": {
+    "@nestjs/cli": {
+      "webpack": "5.112.2"
+    }
+  }
+}

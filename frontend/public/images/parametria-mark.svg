@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="background" x1="13" y1="8" x2="112" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173C5C"/>
+      <stop offset="1" stop-color="#0D273F"/>
+    </linearGradient>
+    <linearGradient id="growth" x1="50" y1="83" x2="105" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7A51B"/>
+      <stop offset="1" stop-color="#FFC247"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="122" height="122" rx="35" fill="url(#background)"/>
+  <path d="M25 99V34h27c18 0 29 9 29 25S70 84 52 84H42v15H25Zm27-30c8 0 13-3 13-10s-5-10-13-10H42v20h10Z" fill="#F8FAFC"/>
+  <path d="m51 88 20-20 11 10 25-29-10-1 22-18-4 28-4-10-29 34-11-10-12 12-8-7Z" fill="url(#growth)"/>
+  <path d="m75 102 11-11 9 9 10-13" stroke="#F8FAFC" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <circle cx="75" cy="102" r="5" fill="#F8FAFC"/>
+  <circle cx="86" cy="91" r="5" fill="#F8FAFC"/>
+  <circle cx="95" cy="100" r="5" fill="#F8FAFC"/>
+  <circle cx="105" cy="87" r="5" fill="#F8FAFC"/>
+</svg>
